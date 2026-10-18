@@ -1,0 +1,12 @@
+{
+  "final_stretch_min_mcap": 8500,
+  "final_stretch_max_age_min": 30,
+  "migrated_min_mcap": 30000,
+  "max_top_holder_pct": 4.0,
+  "max_insider_pct": 10.0,
+  "same_pct_holders": 4,
+  "dashboard_port": 8787,
+  "open_browser": true,
+  "telegram_bot_token": "",
+  "telegram_chat_id": ""
+}

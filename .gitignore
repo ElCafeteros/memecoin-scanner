@@ -1,0 +1,11 @@
+# Your private settings (Telegram token) - never upload
+config.json
+.env
+
+# Generated files
+alerts.log
+__pycache__/
+*.pyc
+
+# Private video script
+VIDEO_SCRIPT.md

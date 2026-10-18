@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meme Coin Scanner</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #12151d; --panel-2: #181c26; --line: #232838;
+    --text: #e7e9ee; --muted: #8a91a5; --green: #3ddc97; --yellow: #f5c451;
+    --red: #ff5d6c; --accent: #7c8cff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: inherit; }
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+           padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+           position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  .status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
+  .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .spacer { flex: 1; }
+  .toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: pointer; user-select: none; }
+  .disclaimer { background: #2a2110; color: var(--yellow); border-bottom: 1px solid #3d3016;
+                padding: 8px 20px; font-size: 13px; }
+  main { display: grid; grid-template-columns: 1fr 320px; gap: 18px; padding: 18px 20px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 14px 16px; } }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .stat .v { font-size: 20px; font-weight: 650; }
+  .stat .l { color: var(--muted); font-size: 12px; }
+  .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .bar h2 { font-size: 15px; margin: 0 8px 0 0; }
+  .chip { background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+          padding: 4px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
+  .chip.active { color: var(--text); border-color: var(--accent); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+          padding: 14px; margin-bottom: 12px; }
+  .card.new { border-color: var(--green); animation: glow 2s ease-out; }
+  @keyframes glow { from { box-shadow: 0 0 0 3px rgba(61,220,151,.35); } to { box-shadow: none; } }
+  .top { display: flex; gap: 12px; align-items: center; }
+  .top img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: var(--panel-2); flex: none; }
+  .title { font-weight: 650; font-size: 15px; word-break: break-word; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); margin-left: 6px; white-space: nowrap; }
+  .tag.mig { color: var(--accent); border-color: #34407a; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px; margin: 12px 0; }
+  .m { background: var(--panel-2); border-radius: 8px; padding: 6px 9px; }
+  .m b { display: block; font-size: 14px; }
+  .m span { color: var(--muted); font-size: 11px; }
+  ul.flags { list-style: none; margin: 6px 0 0; padding: 0; }
+  ul.flags li { padding: 2px 0; font-size: 13px; }
+  .good { color: var(--green); } .warn { color: var(--yellow); } .bad { color: var(--red); }
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .btn { background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+         padding: 6px 11px; border-radius: 8px; font-size: 12px; text-decoration: none; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .empty { color: var(--muted); text-align: center; padding: 50px 10px; border: 1px dashed var(--line); border-radius: 12px; }
+  aside .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+  aside h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .rej { padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+  .rej:last-child { border-bottom: none; }
+  .rej b { font-size: 13px; }
+  .kv { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+  .kv span:first-child { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔎 Meme Coin Scanner</h1>
+  <div class="status"><span class="dot" id="dot"></span><span id="conn">Connecting…</span></div>
+  <div class="spacer"></div>
+  <label class="toggle"><input type="checkbox" id="sound" checked> Sound</label>
+  <label class="toggle"><input type="checkbox" id="notify"> Desktop notifications</label>
+</header>
+<div class="disclaimer">⚠️ Not financial advice. This app never buys anything. It only filters out coins with major red flags. A coin with no red flags can still go to zero.</div>
+
+<main>
+  <section>
+    <div class="stats" id="stats"></div>
+    <div class="bar">
+      <h2>Alerts</h2>
+      <span class="chip active" data-f="all">All</span>
+      <span class="chip" data-f="FINAL STRETCH">Final stretch</span>
+      <span class="chip" data-f="MIGRATED">Migrated</span>
+      <span class="chip" data-f="clean">No warnings</span>
+    </div>
+    <div id="alerts"></div>
+  </section>
+  <aside>
+    <div class="panel"><h3>Recently rejected</h3><div id="rejected"></div></div>
+    <div class="panel"><h3>Filters</h3><div id="settings"></div></div>
+  </aside>
+</main>
+
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeUrl = u => /^https:\/\/[^\s"'<>]+$/i.test(u || "") ? u : "";
+const usd = x => x == null ? "?" : x >= 1e6 ? "$" + (x/1e6).toFixed(2) + "M" : x >= 1e3 ? "$" + (x/1e3).toFixed(1) + "K" : "$" + Math.round(x);
+const ago = s => { const d = Math.max(0, Date.now()/1000 - s); return d < 60 ? Math.round(d) + "s ago" : d < 3600 ? Math.round(d/60) + "m ago" : (d/3600).toFixed(1) + "h ago"; };
+const uptime = s => { const d = Math.floor(s); const h = Math.floor(d/3600), m = Math.floor(d%3600/60); return h ? `${h}h ${m}m` : `${m}m ${d%60}s`; };
+
+let filter = "all", seen = new Set(), first = true, state = null;
+
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+  document.querySelectorAll(".chip").forEach(x => x.classList.remove("active"));
+  c.classList.add("active"); filter = c.dataset.f; render();
+});
+const notifyBox = document.getElementById("notify");
+notifyBox.onchange = () => { if (notifyBox.checked && "Notification" in window) Notification.requestPermission(); };
+try { document.getElementById("sound").checked = localStorage.getItem("sound") !== "0";
+      document.getElementById("sound").onchange = e => localStorage.setItem("sound", e.target.checked ? "1" : "0"); } catch {}
+
+function beep() {
+  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain();
+        o.frequency.value = 880; g.gain.setValueAtTime(.15, a.currentTime); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + .4);
+        o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + .4); } catch {}
+}
+
+function card(a, isNew) {
+  const axiom = a.pair ? `https://axiom.trade/meme/${encodeURIComponent(a.pair)}` : "";
+  const dex = `https://dexscreener.com/solana/${encodeURIComponent(a.mint)}`;
+  const link = safeUrl(a.link), img = safeUrl(a.image);
+  const chg = a.chg_h1 == null ? "?" : (a.chg_h1 > 0 ? "+" : "") + Math.round(a.chg_h1) + "%";
+  return `<div class="card${isNew ? " new" : ""}">
+    <div class="top">
+      ${img ? `<img src="${esc(img)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : `<img alt="">`}
+      <div style="min-width:0">
+        <div class="title">${esc(a.name)} <span class="sub">$${esc(a.symbol)}</span>
+          <span class="tag${a.source === "MIGRATED" ? " mig" : ""}">${esc(a.source)}</span>
+          <span class="tag">${esc(a.kind)}</span></div>
+        <div class="sub">Found ${ago(a.found_at)} · ${esc(a.mint)}</div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="m"><b>${usd(a.mcap)}</b><span>Market cap</span></div>
+      <div class="m"><b>${Math.round(a.age_min)} min</b><span>Age at check</span></div>
+      <div class="m"><b>${usd(a.vol_h1)}</b><span>Volume 1h</span></div>
+      <div class="m"><b>${esc(a.buys)}/${esc(a.sells)}</b><span>Buys / sells</span></div>
+      <div class="m"><b>${esc(a.holders ?? "?")}</b><span>Holders</span></div>
+      <div class="m"><b>${esc(chg)}</b><span>Change 1h</span></div>
+    </div>
+    <ul class="flags">
+      ${a.good.map(g => `<li class="good">✅ ${esc(g)}</li>`).join("")}
+      ${a.soft.map(s => `<li class="warn">⚠️ ${esc(s)}</li>`).join("")}
+    </ul>
+    <div class="actions">
+      ${axiom ? `<a class="btn" href="${esc(axiom)}" target="_blank" rel="noopener noreferrer">Open in Axiom</a>` : ""}
+      <a class="btn" href="${esc(dex)}" target="_blank" rel="noopener noreferrer">DexScreener</a>
+      ${link ? `<a class="btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer">X / socials</a>` : ""}
+      <button class="btn" data-copy="${esc(a.mint)}">Copy CA</button>
+    </div>
+  </div>`;
+}
+
+function render() {
+  if (!state) return;
+  const s = state.stats;
+  document.getElementById("dot").classList.toggle("on", s.connected);
+  document.getElementById("conn").textContent = s.connected ? `Live · up ${uptime(state.now - s.started)}` : "Disconnected, retrying…";
+  const stat = (v, l) => `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  document.getElementById("stats").innerHTML =
+    stat(s.new_coins, "New coins seen") + stat(s.tracked, "Tracking now") + stat(s.migrations, "Migrations") +
+    stat(s.checked, "Checked") + stat(`<span class="good">${s.alerts}</span>`, "Alerts") +
+    stat(`<span class="bad">${s.rejected}</span>`, "Rejected");
+
+  let list = state.alerts;
+  if (filter === "clean") list = list.filter(a => !a.soft.length);
+  else if (filter !== "all") list = list.filter(a => a.source === filter);
+  document.getElementById("alerts").innerHTML = list.length
+    ? list.map(a => card(a, !first && !seen.has(a.mint + a.found_at) )).join("")
+    : `<div class="empty">No alerts yet. The scanner checks coins every ${45} seconds.<br>Most coins never reach the filters, so this can take a while.</div>`;
+
+  document.getElementById("rejected").innerHTML = state.rejected.length
+    ? state.rejected.map(r => `<div class="rej"><b>${esc(r.symbol)}</b> <span class="sub">${usd(r.mcap)} · ${ago(r.found_at)}</span><div class="bad">❌ ${esc(r.hard[0])}</div></div>`).join("")
+    : `<div class="sub">Nothing rejected yet.</div>`;
+
+  const st = state.settings;
+  const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  document.getElementById("settings").innerHTML =
+    kv("Final stretch MC", "≥ " + usd(st.final_stretch_min_mcap)) + kv("Final stretch age", "≤ " + st.final_stretch_max_age_min + " min") +
+    kv("Migrated MC", "≥ " + usd(st.migrated_min_mcap)) + kv("Top holder", "≤ " + st.max_top_holder_pct + "%") +
+    kv("Insiders", "≤ " + st.max_insider_pct + "%") + kv("Same-% holders", "< " + st.same_pct_holders) +
+    kv("Telegram", state.telegram ? `<span class="good">On</span>` : `<span class="sub">Off</span>`) +
+    `<div class="sub" style="margin-top:6px">Change these in config.json</div>`;
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-copy]");
+  if (!b) return;
+  navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = "Copied!"; setTimeout(() => b.textContent = "Copy CA", 1200); });
+});
+
+async function tick() {
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    state = await r.json();
+    const fresh = state.alerts.filter(a => !seen.has(a.mint + a.found_at));
+    render();
+    if (!first && fresh.length) {
+      if (document.getElementById("sound").checked) beep();
+      if (notifyBox.checked && "Notification" in window && Notification.permission === "granted")
+        fresh.forEach(a => new Notification(`${a.name} ($${a.symbol})`, { body: `MC ${usd(a.mcap)} · ${a.source} · ${a.soft.length} warnings` }));
+      document.title = `(${fresh.length}) Meme Coin Scanner`;
+      setTimeout(() => document.title = "Meme Coin Scanner", 8000);
+    }
+    state.alerts.forEach(a => seen.add(a.mint + a.found_at));
+    first = false;
+  } catch {
+    document.getElementById("dot").classList.remove("on");
+    document.getElementById("conn").textContent = "Scanner not running";
+  }
+}
+tick(); setInterval(tick, 3000);
+</script>
+</body>
+</html>
