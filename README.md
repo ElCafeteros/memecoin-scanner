@@ -53,6 +53,16 @@ To stop: `Ctrl+C`, or close the black window.
 - Sound and desktop notifications for new alerts.
 - "Recently rejected" list showing why each coin was rejected.
 
+## Scan any coin 🔎
+At the top of the dashboard, paste a **coin address** or a **pump.fun / DexScreener / Axiom link** and click **Scan**.
+In 5 to 20 seconds you get the full report:
+- A verdict: ❌ major red flags / ⚠️ warnings / ✅ no red flags found
+- Market cap, liquidity, age, volume, buys/sells, holders, top holder %, insiders %
+- Every check with its result (❌ / ⚠️ / ✅) and the top 10 holders
+- Buttons for Axiom, DexScreener, RugCheck, socials and Copy CA
+
+The checks are made for **new pump.fun coins**. On older or big coins, exchange wallets can look like large holders.
+
 ## News bot 📰
 The dashboard has two more tabs:
 - **📰 News**: every 5 minutes it reads CoinDesk, Cointelegraph, Decrypt, The Block, Bitcoinist, U.Today and NewsBTC,

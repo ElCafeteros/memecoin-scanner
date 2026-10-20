@@ -288,6 +288,8 @@ async def check_token(session, mint, source, known: Token | None):
         "mcap": mcap, "age_min": age_min, "vol_h1": vol, "buys": buys, "sells": sells,
         "chg_h1": chg, "holders": holders_n, "top_pct": top_pct, "insider_pct": insider_pct,
         "kind": kind, "link": link, "image": image,
+        "liquidity": (pair.get("liquidity") or {}).get("usd"),
+        "top10": [round(h["pct"], 2) for h in top10],
         "hard": hard, "soft": soft, "good": good, "found_at": now(),
     }
 
@@ -443,10 +445,55 @@ async def api_state(_request):
     })
 
 
-async def start_dashboard():
+SOLANA_ADDR = re.compile(r"[1-9A-HJ-NP-Za-km-z]{32,44}")
+DEX_PAIR = "https://api.dexscreener.com/latest/dex/pairs/solana/{}"
+
+
+async def resolve_mint(session, query):
+    """Accepts a contract address, or a pump.fun / DexScreener / Axiom link. Returns the token mint."""
+    found = SOLANA_ADDR.findall(query or "")
+    if not found:
+        return None
+    addr = found[-1]
+    if await get_json(session, DEX_TOKENS.format(addr)):
+        return addr
+    # DexScreener and Axiom links use the pair address, not the token address
+    data = await get_json(session, DEX_PAIR.format(addr)) or {}
+    pairs = data.get("pairs") or ([data["pair"]] if data.get("pair") else [])
+    return pairs[0]["baseToken"]["address"] if pairs else addr
+
+
+async def api_scan(request):
+    """Manual scan: runs every check on one coin, now, and returns the full report."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    session = request.app["session"]
+    mint = await resolve_mint(session, str(body.get("query", ""))[:300])
+    if not mint:
+        return web.json_response({"error": "That doesn't look like a Solana contract address or coin link."})
+    log(f"🔎 Manual scan: {mint}")
+    try:
+        r = await check_token(session, mint, "MANUAL SCAN", tokens.get(mint))
+    except Exception as e:
+        return web.json_response({"error": f"Scan failed: {e}"})
+    if r is None:
+        return web.json_response({"error": "Coin not found on DexScreener yet. If it was just created, "
+                                           "wait a minute and try again.", "mint": mint})
+    r["verdict"] = "red" if r["hard"] else "warn" if r["soft"] else "clean"
+    if r["age_min"] > 7 * 24 * 60:
+        r["note"] = ("These checks are made for new pump.fun coins. On older or big coins, exchange and "
+                     "staking wallets can show up as large holders, so a red flag may not mean a scam.")
+    return web.json_response(r)
+
+
+async def start_dashboard(session):
     app = web.Application()
+    app["session"] = session
     app.router.add_get("/", page_index)
     app.router.add_get("/api/state", api_state)
+    app.router.add_post("/api/scan", api_scan)
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     port = SETTINGS["dashboard_port"]
@@ -464,7 +511,7 @@ async def main():
     log("Meme Coin Scanner started. Press Ctrl+C to stop.")
     log("Not financial advice: this only filters red flags. It never buys anything.")
     async with aiohttp.ClientSession(headers={"User-Agent": "memecoin-scanner/1.0"}) as session:
-        await start_dashboard()
+        await start_dashboard(session)
         await telegram_chat_id_helper(session)
         if SETTINGS["telegram_bot_token"] and SETTINGS["telegram_chat_id"]:
             await send_telegram(session, "✅ Meme Coin Scanner is running.")

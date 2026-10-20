@@ -65,6 +65,20 @@
   .rej b { font-size: 13px; }
   .kv { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
   .kv span:first-child { color: var(--muted); }
+  .scan { display: flex; gap: 8px; margin-bottom: 14px; }
+  .scan input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); color: var(--text);
+                border-radius: 10px; padding: 11px 13px; font: inherit; }
+  .scan input:focus { outline: none; border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 650; padding: 0 16px; font-size: 14px; }
+  .btn.primary:disabled { opacity: .6; cursor: wait; }
+  .verdict { border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-weight: 650; }
+  .verdict.red { background: #2a1216; color: var(--red); border: 1px solid #5a1f27; }
+  .verdict.warn { background: #2a2110; color: var(--yellow); border: 1px solid #5a4a1f; }
+  .verdict.clean { background: #0f2a20; color: var(--green); border: 1px solid #1f5a43; }
+  .holders { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  .holders span { background: var(--panel-2); border-radius: 6px; padding: 2px 7px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .scan-card { border-color: var(--accent); }
+  .x { float: right; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
   .tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .tab { background: none; border: none; color: var(--muted); font: inherit; font-weight: 600; padding: 9px 12px;
          cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
@@ -101,6 +115,11 @@
 
 <main>
   <section>
+    <form class="scan" id="scan-form" autocomplete="off">
+      <input id="scan-input" placeholder="Paste a coin address or a pump.fun / DexScreener / Axiom link…" spellcheck="false">
+      <button class="btn primary" id="scan-btn" type="submit">🔎 Scan</button>
+    </form>
+    <div id="scan-result"></div>
     <div class="stats" id="stats"></div>
     <nav class="tabs">
       <button class="tab active" data-v="alerts">🔔 Coin alerts</button>
@@ -282,7 +301,78 @@ function render() {
   renderMarket();
 }
 
+// ------------------------------------------------------------ manual scan --
+const VERDICT = {
+  red: "❌ Major red flags found. This coin failed the checks.",
+  warn: "⚠️ No major red flags, but there are warnings. Look carefully.",
+  clean: "✅ No red flags found by the checks. Still not a reason to buy, do your own research.",
+};
+function scanCard(r) {
+  const axiom = r.pair ? `https://axiom.trade/meme/${encodeURIComponent(r.pair)}` : "";
+  const dex = `https://dexscreener.com/solana/${encodeURIComponent(r.mint)}`;
+  const link = safeUrl(r.link), img = safeUrl(r.image);
+  const chg = r.chg_h1 == null ? "?" : (r.chg_h1 > 0 ? "+" : "") + Math.round(r.chg_h1) + "%";
+  return `<div class="card scan-card">
+    <button class="x" data-close-scan title="Close">×</button>
+    <div class="top">
+      ${img ? `<img src="${esc(img)}" alt="" onerror="this.style.visibility='hidden'">` : `<img alt="">`}
+      <div style="min-width:0">
+        <div class="title">${esc(r.name)} <span class="sub">$${esc(r.symbol)}</span> <span class="tag">${esc(r.kind)}</span></div>
+        <div class="sub">${esc(r.mint)}</div>
+      </div>
+    </div>
+    <div class="verdict ${esc(r.verdict)}">${VERDICT[r.verdict] || ""}</div>
+    ${r.note ? `<div class="sub" style="margin:-4px 0 8px">ℹ️ ${esc(r.note)}</div>` : ""}
+    <div class="metrics">
+      <div class="m"><b>${usd(r.mcap)}</b><span>Market cap</span></div>
+      <div class="m"><b>${usd(r.liquidity)}</b><span>Liquidity</span></div>
+      <div class="m"><b>${r.age_min < 120 ? Math.round(r.age_min) + " min" : r.age_min < 2880 ? (r.age_min/60).toFixed(1) + " h" : Math.round(r.age_min/1440) + " days"}</b><span>Age</span></div>
+      <div class="m"><b>${usd(r.vol_h1)}</b><span>Volume 1h</span></div>
+      <div class="m"><b>${esc(r.buys)}/${esc(r.sells)}</b><span>Buys / sells 1h</span></div>
+      <div class="m"><b>${esc(chg)}</b><span>Change 1h</span></div>
+      <div class="m"><b>${esc(r.holders ?? "?")}</b><span>Holders</span></div>
+      <div class="m"><b>${r.top_pct == null ? "?" : r.top_pct.toFixed(1) + "%"}</b><span>Top holder</span></div>
+      <div class="m"><b>${(r.insider_pct || 0).toFixed(1)}%</b><span>Insiders</span></div>
+    </div>
+    <ul class="flags">
+      ${r.hard.map(h => `<li class="bad">❌ ${esc(h)}</li>`).join("")}
+      ${r.soft.map(s => `<li class="warn">⚠️ ${esc(s)}</li>`).join("")}
+      ${r.good.map(g => `<li class="good">✅ ${esc(g)}</li>`).join("")}
+    </ul>
+    ${r.top10 && r.top10.length ? `<div class="sub" style="margin-top:10px">Top 10 holders (without pools)</div>
+      <div class="holders">${r.top10.map(p => `<span>${esc(p)}%</span>`).join("")}</div>` : ""}
+    <div class="actions">
+      ${axiom ? `<a class="btn" href="${esc(axiom)}" target="_blank" rel="noopener noreferrer">Open in Axiom</a>` : ""}
+      <a class="btn" href="${esc(dex)}" target="_blank" rel="noopener noreferrer">DexScreener</a>
+      <a class="btn" href="https://rugcheck.xyz/tokens/${encodeURIComponent(r.mint)}" target="_blank" rel="noopener noreferrer">RugCheck</a>
+      ${link ? `<a class="btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer">X / socials</a>` : ""}
+      <button class="btn" data-copy="${esc(r.mint)}">Copy CA</button>
+    </div>
+    <div class="sub" style="margin-top:8px">Scanned ${new Date().toLocaleTimeString()} · Not financial advice</div>
+  </div>`;
+}
+document.getElementById("scan-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const input = document.getElementById("scan-input"), btn = document.getElementById("scan-btn");
+  const out = document.getElementById("scan-result");
+  const q = input.value.trim();
+  if (!q) return;
+  btn.disabled = true; btn.textContent = "Scanning…";
+  out.innerHTML = `<div class="card scan-card sub">Running all checks (holders, bundles, insiders, contract, copies)… this takes 5-20 seconds.</div>`;
+  try {
+    const r = await (await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" },
+                                               body: JSON.stringify({ query: q }) })).json();
+    out.innerHTML = r.error
+      ? `<div class="card scan-card"><button class="x" data-close-scan>×</button><div class="verdict red">${esc(r.error)}</div></div>`
+      : scanCard(r);
+  } catch {
+    out.innerHTML = `<div class="card scan-card"><div class="verdict red">The scanner is not running. Start run_scanner.bat.</div></div>`;
+  }
+  btn.disabled = false; btn.textContent = "🔎 Scan";
+});
+
 document.addEventListener("click", e => {
+  if (e.target.closest("[data-close-scan]")) { document.getElementById("scan-result").innerHTML = ""; return; }
   const b = e.target.closest("[data-copy]");
   if (!b) return;
   navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = "Copied!"; setTimeout(() => b.textContent = "Copy CA", 1200); });
