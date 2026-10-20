@@ -53,6 +53,16 @@ To stop: `Ctrl+C`, or close the black window.
 - Sound and desktop notifications for new alerts.
 - "Recently rejected" list showing why each coin was rejected.
 
+## News bot 📰
+The dashboard has two more tabs:
+- **📰 News**: every 5 minutes it reads CoinDesk, Cointelegraph, Decrypt, The Block, Bitcoinist, U.Today and NewsBTC,
+  and keeps the stories from the last 24h about **meme coins, Elon / Trump, Solana and exchange listings**.
+  Each story is tagged (Meme coins, Elon / Trump, Solana, Listing, Scam / hack, Regulation) and you can filter by tag.
+- **🔥 Meme market**: the CoinGecko trending list and the biggest movers among the top 100 meme coins.
+
+With Telegram on, you also get new stories and an alert when a top-100 meme coin moves 15%+ in 1 hour.
+News only: `python news_bot.py`.
+
 ## Telegram (optional)
 1. In Telegram, send `/newbot` to **@BotFather** and copy the **token**.
 2. Copy `config.example.json` to `config.json` and put the token in `telegram_bot_token`.
@@ -71,6 +81,10 @@ To stop: `Ctrl+C`, or close the black window.
 | `max_top_holder_pct` | 4 | Maximum % for the top holder |
 | `max_insider_pct` | 10 | Maximum % for linked wallets |
 | `same_pct_holders` | 4 | Holders with the same % that count as a bundle |
+| `news_enabled` | true | Turn the news bot on or off |
+| `news_poll_minutes` | 5 | How often to read the news sites |
+| `news_telegram` | true | Send new stories to Telegram |
+| `mover_alert_pct_1h` | 15 | Telegram alert when a top-100 meme coin moves this % in 1h |
 | `dashboard_port` | 8787 | Dashboard port |
 | `open_browser` | true | Open the dashboard automatically |
 

@@ -27,6 +27,8 @@ import aiohttp
 import websockets
 from aiohttp import web
 
+from news_bot import NewsBot
+
 # ---------------------------------------------------------------- settings ---
 # Change anything here, or put the same keys in config.json.
 SETTINGS = {
@@ -43,6 +45,12 @@ SETTINGS = {
     "same_pct_holders": 4,            # this many holders with the same % (>=1%) -> bundle
     "skip_profile_coins": True,       # Setuh: profile coins are the worst
     "poll_seconds": 45,
+    # News bot (see news_bot.py)
+    "news_enabled": True,
+    "news_poll_minutes": 5,
+    "market_poll_minutes": 10,
+    "news_telegram": True,            # send matching news to Telegram
+    "mover_alert_pct_1h": 15,         # alert when a top-100 meme coin moves this much in 1h
     # Dashboard
     "dashboard_port": 8787,
     "open_browser": True,
@@ -112,6 +120,7 @@ class Token:
 tokens: dict[str, Token] = {}
 seen_checked: set[str] = set()
 rug_sem = asyncio.Semaphore(2)
+news: NewsBot | None = None
 
 alerts: deque = deque(maxlen=200)
 rejected: deque = deque(maxlen=100)
@@ -430,6 +439,7 @@ async def api_state(_request):
         "telegram": bool(SETTINGS["telegram_bot_token"] and SETTINGS["telegram_chat_id"]),
         "alerts": list(alerts),
         "rejected": list(rejected)[:40],
+        "news": news.state() if news else None,
     })
 
 
@@ -459,7 +469,12 @@ async def main():
         if SETTINGS["telegram_bot_token"] and SETTINGS["telegram_chat_id"]:
             await send_telegram(session, "✅ Meme Coin Scanner is running.")
             log("Telegram: alerts will be sent to your phone.")
-        await asyncio.gather(ws_loop(session), poll_loop(session))
+        loops = [ws_loop(session), poll_loop(session)]
+        if SETTINGS["news_enabled"]:
+            global news
+            news = NewsBot(SETTINGS, send=lambda text: send_telegram(session, text), log=log)
+            loops.append(news.run(session))
+        await asyncio.gather(*loops)
 
 
 if __name__ == "__main__":

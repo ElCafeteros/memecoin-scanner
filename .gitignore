@@ -9,3 +9,8 @@ __pycache__/
 
 # Private video script
 VIDEO_SCRIPT.md
+
+# News bot state
+news_seen.json
+news.log
+PROMPT_FOR_CLAUDE.md
